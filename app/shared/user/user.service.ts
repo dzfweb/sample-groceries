@@ -1,28 +1,53 @@
 import {Injectable} from "@angular/core";
+import {Http, Headers, Response} from "@angular/http";
 import {User} from "./user";
 import {Config} from "../config";
+import {Observable} from "rxjs/Rx";
+import "rxjs/add/operator/do";
+import "rxjs/add/operator/map";
 
 @Injectable()
 export class UserService {
+  constructor(private _http: Http) {}
+
   register(user: User) {
-    return Config.el.Users.register(user.email, user.password)
-      .catch(this.handleErrors);
+    let headers = new Headers();
+    headers.append("Content-Type", "application/json");
+
+    return this._http.post(
+      Config.apiUrl + "Users",
+      JSON.stringify({
+        Username: user.email,
+        Email: user.email,
+        Password: user.password
+      }),
+      { headers: headers }
+    )
+    .catch(this.handleErrors);
+  }
+
+  handleErrors(error: Response) {
+    console.log(JSON.stringify(error.json()));
+    return Observable.throw(error);
   }
 
   login(user: User) {
-    return Config.el.authentication.login(user.email, user.password).then((data) => {
-      Config.token = data.result.access_token;
-      return Promise.resolve();
-    }).catch(this.handleErrors);
-  }
+  let headers = new Headers();
+  headers.append("Content-Type", "application/json");
 
-  resetPassword(email) {
-    return Config.el.Users.resetPassword({ Username: email })
-      .catch(this.handleErrors);
-  }
-
-  handleErrors(error) {
-    console.log(JSON.stringify(error));
-    return Promise.reject(error.message);
-  }
+  return this._http.post(
+    Config.apiUrl + "oauth/token",
+    JSON.stringify({
+      username: user.email,
+      password: user.password,
+      grant_type: "password"
+    }),
+    { headers: headers }
+  )
+  .map(response => response.json())
+  .do(data => {
+    Config.token = data.Result.access_token;
+  })
+  .catch(this.handleErrors);
+}
 }
